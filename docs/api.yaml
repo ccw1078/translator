@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: 翻译服务 API
+  description: 提供英文到中文的翻译服务，支持词汇表提取和Word文档生成
+  version: 1.0.0
+  contact:
+    name: 翻译服务团队
+    email: support@example.com
+
+servers:
+  - url: /api
+    description: 主API服务器
+
+paths:
+  /v1/translate:
+    post:
+      summary: 翻译英文文本为中文
+      description: 将提供的英文文本翻译为中文，可选地提取专业词汇和生成Word文档
+      tags:
+        - 翻译
+      requestBody:
+        description: 翻译请求参数
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: 要翻译的英文文本
+                  example: "Machine learning is a method of data analysis that automates analytical model building."
+                  maxLength: 10000
+                output_format:
+                  type: string
+                  description: 输出格式，可选值为'json'或'word'
+                  default: 'json'
+                  enum: [json, word]
+                include_vocabulary:
+                  type: string
+                  description: 是否包含词汇表，设置为"true"时包含
+                  example: "true"
+      responses:
+        '200':
+          description: 翻译成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  translation:
+                    type: string
+                    description: 翻译后的中文文本
+                    example: "机器学习是一种数据分析方法，它可以自动构建分析模型。"
+                  vocabulary:
+                    type: array
+                    description: 提取的专业词汇表（仅当include_vocabulary为true时返回）
+                    items:
+                      $ref: '#/components/schemas/VocabularyItem'
+                  word_document_url:
+                    type: string
+                    description: 生成的Word文档下载URL（仅当output_format为word时返回）
+                    example: "/downloads/translation_1a2b3c4d.docx"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    VocabularyItem:
+      type: object
+      properties:
+        english:
+          type: string
+          description: 英文术语
+          example: "Machine Learning"
+        chinese:
+          type: string
+          description: 中文翻译
+          example: "机器学习"
+        explanation:
+          type: string
+          description: 术语解释
+          example: "计算机通过数据自动学习而不依赖明确编程的技术"
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: 错误信息
+          example: "缺少必要参数 'text'"
