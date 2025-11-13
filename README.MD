@@ -25,11 +25,11 @@ else:
 
 # Core Code
 
-Github Project: [Translator](https://github.com/ccw1078/translator)
+current Github project: [Translator](https://github.com/ccw1078/translator)
 
 # Test Code
 
-Test Code: [test_api.py](https://github.com/ccw1078/translator/blob/main/tests/test_api.py)
+Tests folder of current project: [/tests](https://github.com/ccw1078/translator/tree/main/tests)
 
 # Test Data and Word document samples
 
@@ -37,20 +37,28 @@ Test Code: [test_api.py](https://github.com/ccw1078/translator/blob/main/tests/t
 As you probably know, in my books I described what I call the Big Cycle in which 5 major forces--1) the debt/money order, 2) the internal political/social order, 3) the international geopolitical order, 4) acts of nature, and 5) new technologies--interact and transpire. I described in detail how these changes typically take place, and, as a result, I have many indicators that I watch closely to track how actual events are transpiring relative to my template. And, as you probably know, my measures show that we are now in the bubble stage of the Big Cycle, which is when there is unsustainable debt growth and monetization of the debts that change the monetary order and coincide with disruptive changes in the political, geopolitical, and technological orders
 ```
 
-Word document samples: [vocabulary.docx](https://github.com/ccw1078/translator/blob/main/docs/translation_documents.docx)
+Word document sample: docs folder of current project
+
+[/docs/translation_documents.docx](https://github.com/ccw1078/translator/blob/main/docs/translation_documents.docx)
 
 # Operation Screenshots
 
 ![translate_with_vocabulary.png](https://lhwccw.oss-cn-shenzhen.aliyuncs.com/202511130855769.png)
 
 
-web demo: [HuggingFace Space](https://huggingface.co/spaces/wwwtic/translator)
 
 # AI Conversation Records
 
-Not available yet.
+Not available yet. It seems DeepSeek doesnt provide a sharing link for the conversation records. So I made a simple web demo to show the translation results, which is hosted on HuggingFace Spaces.
 
-> It seems DeepSeek doesnt provide sharing link
+
+# Web Demo
+
+> Due to Hugging Face's free-tier limitations, if an application receives no requests for an extended period, it may enter a sleep state. A cold restart takes some time, which can make the app appear unresponsive when first accessed.
+
+web demo: [HuggingFace Space](https://huggingface.co/spaces/wwwtic/translator)
+
+![](https://lhwccw.oss-cn-shenzhen.aliyuncs.com/202511130939830.png)
 
 # TODO
 
