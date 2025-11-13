@@ -1,0 +1,16 @@
+services:
+  app:
+    image: ccr.ccs.tencentyun.com/idemo/translator:prod-v0.2
+    volumes:
+    - .:/usr/translator
+    entrypoint: ["python", "main.py"]
+    ports:
+      - 5000:5000
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      translator:
+
+networks:
+  translator:
