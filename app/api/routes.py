@@ -136,17 +136,20 @@ def translate_stream(args):
         # 定义流式响应的生成器函数
         @stream_with_context
         def generate():
+            error_occurred = False
             try:
                 # 调用流式翻译服务
                 for chunk in translate_with_vocabulary_stream(
                     text, output_format, include_vocabulary
                 ):
                     yield f"data: {json.dumps(chunk)}\n\n"
-                # 结束信号
-                yield "data: [DONE]\n\n"
             except Exception as e:
+                error_occurred = True
                 logger.error(f"流式翻译请求处理错误: {str(e)}")
                 yield f"data: {json.dumps({'success': False, 'type': 'error', 'error': str(e)})}\n\n"
+
+            if not error_occurred:
+                yield "data: [DONE]\n\n"
 
         # 返回SSE格式的流式响应
         return Response(

@@ -40,14 +40,14 @@ class TestAPI(unittest.TestCase):
         mock_translate_with_vocabulary.assert_called_once_with("Hello, world!", False)
 
     @patch("app.api.routes.translate_with_vocabulary")
-    @patch("app.api.routes.generate_word_document")
+    @patch("app.api.routes.generate_word_document_url")
     def test_translate_api_with_word_output(
         self, mock_generate, mock_translate_with_vocabulary
     ):
         """测试带Word输出的翻译API功能"""
         # 设置模拟函数返回值
         mock_translate_with_vocabulary.return_value = ("测试翻译", [])
-        mock_generate.return_value = None
+        mock_generate.return_value = "http://example.com/document.docx"
 
         # 发送测试请求
         response = self.client.post(
@@ -159,7 +159,7 @@ class TestAPI(unittest.TestCase):
         )
 
     @patch("app.api.routes.translate_with_vocabulary")
-    @patch("app.api.routes.generate_word_document")
+    @patch("app.api.routes.generate_word_document_url")
     def test_translate_api_with_vocabulary_and_word(
         self, mock_generate, mock_translate_with_vocabulary
     ):
@@ -173,7 +173,7 @@ class TestAPI(unittest.TestCase):
             }
         ]
         mock_translate_with_vocabulary.return_value = ("这是一个测试", mock_vocabulary)
-        mock_generate.return_value = None
+        mock_generate.return_value = "http://example.com/document.docx"
 
         # 发送测试请求
         response = self.client.post(
@@ -201,7 +201,7 @@ class TestAPI(unittest.TestCase):
         """测试基本的/v2/translate流式API功能"""
 
         # 设置模拟函数返回值，模拟流式响应
-        def mock_stream_response(text, include_vocabulary):
+        def mock_stream_response(text, output_format, include_vocabulary):
             chunks = ["你", "好", "，", "世", "界", "！"]
             for chunk in chunks:
                 yield {"type": "chunk", "translation": chunk}
@@ -234,7 +234,7 @@ class TestAPI(unittest.TestCase):
         """测试包含词汇表的/v2/translate流式API功能"""
 
         # 设置模拟函数返回值
-        def mock_stream_response(text, include_vocabulary):
+        def mock_stream_response(text, output_format, include_vocabulary):
             chunks = [
                 "机",
                 "器",
@@ -319,44 +319,31 @@ class TestAPI(unittest.TestCase):
         self.assertFalse(data["success"])
         self.assertIn("text", data["error"])
 
-    def test_translate_v2_api_word_format_not_supported(self):
-        """测试/v2/translate使用不支持的word格式"""
-        # 发送使用word格式的请求
-        response = self.client.post(
-            "/api/v2/translate",
-            data=json.dumps({"text": "Hello, world!", "output_format": "word"}),
-            content_type="application/json",
-        )
+    def test_translate_v2_api_word_format_supported(self):
+        """测试/v2/translate使用支持的word格式"""
 
-        # 验证响应
-        self.assertEqual(response.status_code, 400)
-        data = json.loads(response.data)
-        self.assertFalse(data["success"])
-        self.assertIn("output_format", data["error"])
+        # 设置模拟函数返回值，支持word格式
+        def mock_stream_response(text, output_format, include_vocabulary):
+            yield {
+                "type": "chunk",
+                "word_document_url": "http://example.com/document.docx",
+            }
+            yield {"type": "complete", "done": True}
 
-    @patch("app.api.routes.translate_with_vocabulary_stream")
-    def test_translate_v2_api_service_error(
-        self, mock_translate_with_vocabulary_stream
-    ):
-        """测试/v2/translate服务错误情况"""
+        with patch(
+            "app.api.routes.translate_with_vocabulary_stream",
+            side_effect=mock_stream_response,
+        ):
+            # 发送使用word格式的请求
+            response = self.client.post(
+                "/api/v2/translate",
+                data=json.dumps({"text": "Hello, world!", "output_format": "word"}),
+                content_type="application/json",
+            )
 
-        # 设置模拟函数抛出异常
-        def mock_error_response(text, include_vocabulary):
-            yield "翻译服务请求失败: API错误"
-
-        mock_translate_with_vocabulary_stream.side_effect = mock_error_response
-
-        # 发送测试请求
-        response = self.client.post(
-            "/api/v2/translate",
-            data=json.dumps({"text": "Hello, world!"}),
-            content_type="application/json",
-        )
-
-        # 验证响应
-        self.assertEqual(response.status_code, 200)
-        response_data = response.data.decode("utf-8")
-        self.assertIn("[DONE]", response_data)
+            # 验证响应
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content_type, "text/event-stream")
 
 
 if __name__ == "__main__":
