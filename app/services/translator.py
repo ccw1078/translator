@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 DEEPSEEK_API_URL = os.getenv("DEEPSEEK_API_URL")
 
-SEPARATOR = "===Technical terms==="
+SEPARATOR = "==Terms=="
 
 
 def get_translation_prompts(text, include_vocabulary):
@@ -65,6 +65,8 @@ def get_payload(system_prompt, user_prompt, stream=False):
     返回:
     dict: 符合DeepSeek API要求的payload格式
     """
+    if not DEEPSEEK_API_KEY:
+        raise Exception("DeepSeek API密钥未配置")
     return {
         "model": "deepseek-chat",  # 使用DeepSeek对话模型
         "messages": [
@@ -151,14 +153,6 @@ def translate_with_vocabulary(text, include_vocabulary=False):
            (翻译后的中文文本, []) 如果 include_vocabulary=False
     """
     try:
-        # 验证API密钥
-        if not DEEPSEEK_API_KEY:
-            raise Exception("DeepSeek API密钥未配置")
-
-        # 验证文本是否为空
-        if not text.strip():
-            return "输入文本不能为空", []
-
         # 获取翻译所需的prompt模板
         system_prompt, user_prompt = get_translation_prompts(text, include_vocabulary)
 
@@ -215,15 +209,6 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
     generator: 流式返回翻译结果的生成器
     """
     try:
-        # 验证API密钥
-        if not DEEPSEEK_API_KEY:
-            raise Exception("DeepSeek API密钥未配置")
-
-        # 验证文本是否为空
-        if not text.strip():
-            yield "输入文本不能为空"
-            return
-
         # 获取翻译所需的prompt模板
         system_prompt, user_prompt = get_translation_prompts(text, include_vocabulary)
 
@@ -241,12 +226,14 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
         logger.info(
             f"发送流式翻译请求到DeepSeek API，文本长度: {len(text)} 字符, 包含词汇表: {include_vocabulary}"
         )
+
         with requests.post(
             DEEPSEEK_API_URL, json=payload, headers=headers, stream=True
         ) as response:
             # 检查响应状态
             response.raise_for_status()
-
+            found_separator = False
+            buffer = ""
             # 逐行处理流式响应
             for line in response.iter_lines():
                 if line:
@@ -254,8 +241,13 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
                     line = line.decode("utf-8")
                     if line.startswith("data: "):
                         line = line[6:]
-                    # 忽略终止信号
+                    # # 忽略终止信号
                     if line == "[DONE]":
+                        if not include_vocabulary and len(buffer) > 0:
+                            yield {
+                                "type": "chunk",
+                                "translation": buffer,
+                            }
                         break
                     try:
                         # 解析JSON
@@ -266,13 +258,42 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
                             content = delta.get("content", "")
                             if content:
                                 full_content += content
-                                # 产生新的内容片段用于流式输出
-                                yield content
+                                if found_separator:
+                                    buffer = ""
+                                    yield {"type": "chunk", "vocabulary": content}
+                                else:
+                                    buffer += content
+                                    if SEPARATOR not in buffer:
+                                        if len(buffer) >= 2 * len(SEPARATOR):
+                                            yield {
+                                                "type": "chunk",
+                                                "translation": buffer[0 : len(content)],
+                                            }
+                                            buffer = buffer[len(content) :]
+                                        else:
+                                            continue
+                                    else:
+                                        found_separator = True
+                                        first_part, second_part = buffer.split(
+                                            SEPARATOR, 1
+                                        )
+                                        buffer = second_part
+                                        found_separator = True
+                                        yield {
+                                            "type": "chunk",
+                                            "translation": first_part,
+                                            "vocabulary": second_part,
+                                        }
+
                     except json.JSONDecodeError:
                         logger.warning(f"无法解析响应行: {line}")
 
-        # 最后一个yield返回完整的翻译结果和词汇列表
-        yield split_translation_vocabulary(full_content)
+        # # 最后一个yield返回完整的翻译结果和词汇列表
+        # yield split_translation_vocabulary(full_content)
+        yield {
+            "type": "complete",
+            "done": True,
+        }
 
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API流式请求错误: {str(e)}")

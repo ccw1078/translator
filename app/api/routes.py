@@ -160,28 +160,9 @@ def translate_stream(args):
         @stream_with_context
         def generate():
             try:
-                # 用于存储完整的翻译结果
-                full_translation = ""
-                vocabulary_list = []
-
                 # 调用流式翻译服务
                 for chunk in translate_with_vocabulary_stream(text, include_vocabulary):
-                    # 检查是否是最后一个chunk（包含完整结果）
-                    if isinstance(chunk, tuple) and len(chunk) == 2:
-                        full_translation, vocabulary_list = chunk
-                        # 构建最终的词汇表JSON响应
-                        response_data = {
-                            "success": True,
-                            "type": "complete",
-                            "translation": full_translation,
-                        }
-                        if include_vocabulary and vocabulary_list:
-                            response_data["vocabulary"] = vocabulary_list
-                        yield f"data: {json.dumps(response_data)}\n\n"
-                    else:
-                        # 输出翻译的文本片段
-                        if chunk:
-                            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+                    yield f"data: {json.dumps(chunk)}\n\n"
                 # 结束信号
                 yield "data: [DONE]\n\n"
             except Exception as e:
