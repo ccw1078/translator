@@ -79,6 +79,8 @@ translate_args = {
     ),
     # 是否包含词汇表，默认为False
     "include_vocabulary": fields.Bool(load_default=False),
+    # 是否启用流式响应，默认为False
+    "streaming": fields.Bool(load_default=False),
 }
 
 
