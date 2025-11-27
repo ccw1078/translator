@@ -162,5 +162,128 @@ class TestAPI(unittest.TestCase):
         self.assertIn('vocabulary', data)
         self.assertIn('word_document_url', data)
 
+    @patch('app.api.routes.translate_with_vocabulary_stream')
+    def test_translate_v2_api_basic(self, mock_translate_with_vocabulary_stream):
+        """测试基本的/v2/translate流式API功能"""
+        # 设置模拟函数返回值，模拟流式响应
+        def mock_stream_response(text, include_vocabulary):
+            chunks = ['你', '好', '，', '世', '界', '！']
+            for chunk in chunks:
+                yield chunk
+            # 最后返回完整结果
+            yield ('你好，世界！', [])
+        
+        mock_translate_with_vocabulary_stream.side_effect = mock_stream_response
+        
+        # 发送测试请求
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({'text': 'Hello, world!'}),
+                                   content_type='application/json')
+        
+        # 验证响应状态和内容类型
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/event-stream')
+        
+        # 验证响应内容
+        response_data = response.data.decode('utf-8')
+        self.assertIn('chunk', response_data)
+        self.assertIn('complete', response_data)
+        self.assertIn('success', response_data)
+        self.assertIn('[DONE]', response_data)
+    
+    @patch('app.api.routes.translate_with_vocabulary_stream')
+    def test_translate_v2_api_with_vocabulary(self, mock_translate_with_vocabulary_stream):
+        """测试包含词汇表的/v2/translate流式API功能"""
+        # 设置模拟函数返回值
+        def mock_stream_response(text, include_vocabulary):
+            chunks = ['机', '器', '学', '习', '是', '人', '工', '智', '能', '的', '一', '个', '分', '支']
+            for chunk in chunks:
+                yield chunk
+            # 最后返回完整结果和词汇表
+            mock_vocabulary = [
+                {"english": "machine learning", "chinese": "机器学习", "explanation": "人工智能的一个分支"}
+            ]
+            yield ('机器学习是人工智能的一个分支', mock_vocabulary)
+        
+        mock_translate_with_vocabulary_stream.side_effect = mock_stream_response
+        
+        # 发送测试请求
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({
+                                       'text': 'Machine learning is a branch of artificial intelligence',
+                                       'include_vocabulary': 'true'
+                                   }),
+                                   content_type='application/json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, 200)
+        response_data = response.data.decode('utf-8')
+        self.assertIn('chunk', response_data)
+        self.assertIn('complete', response_data)
+        self.assertIn('vocabulary', response_data)
+        self.assertIn('[DONE]', response_data)
+    
+    def test_translate_v2_api_missing_text(self):
+        """测试/v2/translate缺少text参数的情况"""
+        # 发送缺少text参数的请求
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({}),
+                                   content_type='application/json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertFalse(data['success'])
+        self.assertEqual(data['error'], "缺少必要参数 'text'")
+    
+    def test_translate_v2_api_text_too_long(self):
+        """测试/v2/translate文本长度超过限制的情况"""
+        # 发送文本过长的请求
+        text = generate_random_string(MAX_TEXT_LENGTH + 1)
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({'text': text}),
+                                   content_type='application/json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertFalse(data['success'])
+        self.assertEqual(data['error'], f"文本长度不能超过 {MAX_TEXT_LENGTH} 个字符")
+    
+    def test_translate_v2_api_word_format_not_supported(self):
+        """测试/v2/translate使用不支持的word格式"""
+        # 发送使用word格式的请求
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({
+                                       'text': 'Hello, world!',
+                                       'output_format': 'word'
+                                   }),
+                                   content_type='application/json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.data)
+        self.assertFalse(data['success'])
+        self.assertEqual(data['error'], "流式响应不支持Word文档格式")
+    
+    @patch('app.api.routes.translate_with_vocabulary_stream')
+    def test_translate_v2_api_service_error(self, mock_translate_with_vocabulary_stream):
+        """测试/v2/translate服务错误情况"""
+        # 设置模拟函数抛出异常
+        def mock_error_response(text, include_vocabulary):
+            yield "翻译服务请求失败: API错误"
+        
+        mock_translate_with_vocabulary_stream.side_effect = mock_error_response
+        
+        # 发送测试请求
+        response = self.client.post('/api/v2/translate', 
+                                   data=json.dumps({'text': 'Hello, world!'}),
+                                   content_type='application/json')
+        
+        # 验证响应
+        self.assertEqual(response.status_code, 200)
+        response_data = response.data.decode('utf-8')
+        self.assertIn('[DONE]', response_data)
+
 if __name__ == '__main__':
     unittest.main()
