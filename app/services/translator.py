@@ -4,6 +4,8 @@ import logging
 import json
 from dotenv import load_dotenv
 
+from app.services.document_generator import generate_word_document_url
+
 # 加载环境变量
 load_dotenv()
 
@@ -202,7 +204,9 @@ def translate_with_vocabulary(text, include_vocabulary=False):
         raise Exception(f"翻译服务处理失败: {str(e)}")
 
 
-def translate_with_vocabulary_stream(text, include_vocabulary=False):
+def translate_with_vocabulary_stream(
+    text, output_format="json", include_vocabulary=False
+):
     """
     使用DeepSeek API将英文文本翻译为中文，并可选地提取专业词汇（流式版本）
 
@@ -293,8 +297,17 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
                     except json.JSONDecodeError:
                         logger.warning(f"无法解析响应行: {line}")
 
-        # # 最后一个yield返回完整的翻译结果和词汇列表
-        # yield split_translation_vocabulary(full_content)
+            if output_format == "word":
+                translation, vocabulary_list = split_translation_vocabulary(
+                    full_content
+                )
+                word_document_url = generate_word_document_url(
+                    text, translation, vocabulary_list
+                )
+                yield {
+                    "type": "chunk",
+                    "word_document_url": word_document_url,
+                }
         yield {
             "type": "complete",
             "done": True,

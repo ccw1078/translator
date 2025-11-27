@@ -1,12 +1,10 @@
-from flask import request, jsonify, current_app, Response, stream_with_context
+from flask import jsonify, Response, stream_with_context
 from app.api import api_bp
 from app.services.translator import (
     translate_with_vocabulary,
     translate_with_vocabulary_stream,
 )
-from app.services.document_generator import generate_word_document
-import uuid
-import os
+from app.services.document_generator import generate_word_document_url
 import logging
 import json
 
@@ -45,18 +43,9 @@ def build_translation_response(
 
     # 如果需要Word文档
     if output_format == "word":
-        logger.info("开始生成Word文档")
-        # 生成唯一文件名
-        file_id = str(uuid.uuid4())[:8]
-        filename = f"translation_{file_id}.docx"
-        filepath = os.path.join(current_app.config["DOWNLOAD_FOLDER"], filename)
-
-        # 生成Word文档
-        generate_word_document(text, translation, vocabulary, filepath)
-
-        # 添加文档URL到响应
-        response["word_document_url"] = f"/downloads/{filename}"
-        logger.info(f"Word文档生成完成，文件名: {filename}")
+        response["word_document_url"] = generate_word_document_url(
+            text, translation, vocabulary
+        )
 
     return response
 
@@ -139,20 +128,8 @@ def translate_stream(args):
     try:
         # 获取参数，设置默认值
         text = args.get("text")
-        include_vocabulary = args.get("include_vocabulary", False)
         output_format = args.get("output_format", "json")
-
-        # 检查是否请求了不支持的Word格式
-        if output_format == "word":
-            return (
-                jsonify(
-                    {
-                        "success": False,
-                        "error": {"output_format": ["流式响应不支持Word文档格式"]},
-                    }
-                ),
-                400,
-            )
+        include_vocabulary = args.get("include_vocabulary", False)
 
         logger.info(f"接收到流式翻译请求，文本长度: {len(text)} 字符")
 
@@ -161,7 +138,9 @@ def translate_stream(args):
         def generate():
             try:
                 # 调用流式翻译服务
-                for chunk in translate_with_vocabulary_stream(text, include_vocabulary):
+                for chunk in translate_with_vocabulary_stream(
+                    text, output_format, include_vocabulary
+                ):
                     yield f"data: {json.dumps(chunk)}\n\n"
                 # 结束信号
                 yield "data: [DONE]\n\n"

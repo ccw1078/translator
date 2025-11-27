@@ -16,11 +16,8 @@ PAYLOAD = {
     "text": (
         "This year, as millions of families in the US sit down to celebrate Thanksgiving, "
         'many will tuck into one of the most quintessentially "American" foods: macaroni and cheese. '
-        "But while some sources trace the baked dish's mysterious origins to Italy or Switzerland, "
-        "the dish as Americans know it today may have been popularised in the New World via an unlikely figure – "
-        "an enslaved chef named James Hemings."
     ),
-    "output_format": "json",
+    "output_format": "word",
     "include_vocabulary": True,
     "streaming": True,
 }
