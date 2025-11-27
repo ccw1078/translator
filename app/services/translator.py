@@ -153,6 +153,11 @@ def translate_with_vocabulary(text, include_vocabulary=False):
            (翻译后的中文文本, []) 如果 include_vocabulary=False
     """
     try:
+        # 检查输入文本是否为空
+        if not text or text.strip() == "":
+            logger.warning("尝试翻译空文本")
+            return "", []
+
         # 获取翻译所需的prompt模板
         system_prompt, user_prompt = get_translation_prompts(text, include_vocabulary)
 
@@ -297,9 +302,9 @@ def translate_with_vocabulary_stream(text, include_vocabulary=False):
 
     except requests.exceptions.RequestException as e:
         logger.error(f"DeepSeek API流式请求错误: {str(e)}")
-        yield f"翻译服务请求失败: {str(e)}"
+        yield {"type": "error", "error": f"翻译服务请求失败: {str(e)}"}
         return
     except Exception as e:
         logger.error(f"流式翻译处理错误: {str(e)}")
-        yield f"翻译服务处理失败: {str(e)}"
+        yield {"type": "error", "error": f"翻译服务处理失败: {str(e)}"}
         return

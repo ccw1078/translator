@@ -204,9 +204,9 @@ class TestAPI(unittest.TestCase):
         def mock_stream_response(text, include_vocabulary):
             chunks = ["你", "好", "，", "世", "界", "！"]
             for chunk in chunks:
-                yield chunk
+                yield {"type": "chunk", "translation": chunk}
             # 最后返回完整结果
-            yield ("你好，世界！", [])
+            yield {"type": "complete", "done": True}
 
         mock_translate_with_vocabulary_stream.side_effect = mock_stream_response
 
@@ -225,7 +225,6 @@ class TestAPI(unittest.TestCase):
         response_data = response.data.decode("utf-8")
         self.assertIn("chunk", response_data)
         self.assertIn("complete", response_data)
-        self.assertIn("success", response_data)
         self.assertIn("[DONE]", response_data)
 
     @patch("app.api.routes.translate_with_vocabulary_stream")
@@ -253,7 +252,7 @@ class TestAPI(unittest.TestCase):
                 "支",
             ]
             for chunk in chunks:
-                yield chunk
+                yield {"type": "chunk", "translation": chunk}
             # 最后返回完整结果和词汇表
             mock_vocabulary = [
                 {
@@ -262,7 +261,12 @@ class TestAPI(unittest.TestCase):
                     "explanation": "人工智能的一个分支",
                 }
             ]
-            yield ("机器学习是人工智能的一个分支", mock_vocabulary)
+            yield {
+                "type": "complete",
+                "done": True,
+                "translation": "机器学习是人工智能的一个分支",
+                "vocabulary": mock_vocabulary,
+            }
 
         mock_translate_with_vocabulary_stream.side_effect = mock_stream_response
 
