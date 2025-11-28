@@ -1,6 +1,6 @@
 services:
   app:
-    image: ccr.ccs.tencentyun.com/idemo/translator:prod-v0.2
+    image: ccr.ccs.tencentyun.com/idemo/translator:prod-v0.3
     volumes:
     - .:/usr/translator
     entrypoint: ["python", "main.py"]

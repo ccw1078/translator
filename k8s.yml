@@ -1,0 +1,64 @@
+# 创建 APP
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: translator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: translator
+      tier: backend
+  template:
+    metadata:
+      name: translator
+      labels:
+        app: translator
+        tier: backend
+      annotations:
+        eks.tke.cloud.tencent.com/eip-attributes: '{"InternetMaxBandwidthOut": 100}'
+    spec:
+      imagePullSecrets:
+        - name: $K8S_REGISTRY
+      containers:
+        - image: ccr.ccs.tencentyun.com/idemo/translator:prod-v0.3
+          name: translator
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: translator.env
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 50M
+
+---
+# 创建 APP 的服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: translator
+  labels:
+    app: translator
+    tier: backend
+spec:
+  selector:
+    app: translator
+    tier: backend
+  ports:
+    - name: translator-http
+      port: 5000
+      targetPort: 5000
